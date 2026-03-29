@@ -70,7 +70,7 @@ func worker(id int, ready chan<- struct{}, done <-chan struct{}) {
 	}
 	defer c.Close()
 
-	sub, err := c.Subscribe(context.Background(), "work-queue")
+	sub, err := c.SubscribeExclusive(context.Background(), "work-queue")
 	if err != nil {
 		log.Fatal(err)
 	}
