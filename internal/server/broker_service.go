@@ -204,7 +204,10 @@ func (s *BrokerService) Subscribe(stream grpc.BidiStreamingServer[pb.SubscribeSt
 			// If the client message was an Ack, handleClientMsg already returned
 			// a token — the default branch safely discards the duplicate since
 			// ackGate is buffered to 1.
-			if exclusive && !paused {
+			// Always return the token in exclusive mode: if the client sent a Pause,
+			// paused is now true but we still need the token available for when the
+			// client resumes (the paused loop doesn't consume/return the gate token).
+			if exclusive {
 				select {
 				case ackGate <- struct{}{}:
 				default:

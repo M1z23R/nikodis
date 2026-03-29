@@ -662,6 +662,173 @@ func TestBrokerExclusiveMode_BlocksAcrossChannels(t *testing.T) {
 	}
 }
 
+func TestBrokerIndependentMode_PerChannelPause(t *testing.T) {
+	_, bc, _, _, cleanup := startBufconn(t, nil)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stream, err := bc.Subscribe(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch-a", "ch-b"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_INDEPENDENT,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Pause ch-a
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Pause{
+			Pause: &pb.Pause{Channel: "ch-a"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Publish to both
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch-a", Data: []byte("a-msg")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch-b", Data: []byte("b-msg")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should only receive from ch-b (ch-a is paused)
+	msg, err := stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Channel != "ch-b" || string(msg.Data) != "b-msg" {
+		t.Fatalf("expected ch-b/b-msg, got %s/%s", msg.Channel, msg.Data)
+	}
+
+	// Ack it
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Ack{
+			Ack: &pb.Ack{MessageId: msg.Id},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Resume ch-a
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Resume{
+			Resume: &pb.Resume{Channel: "ch-a"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Now should receive from ch-a
+	msg, err = stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Channel != "ch-a" || string(msg.Data) != "a-msg" {
+		t.Fatalf("expected ch-a/a-msg, got %s/%s", msg.Channel, msg.Data)
+	}
+}
+
+func TestBrokerExclusiveMode_GlobalPause(t *testing.T) {
+	_, bc, _, _, cleanup := startBufconn(t, nil)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stream, err := bc.Subscribe(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch1"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Pause globally
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Pause{
+			Pause: &pb.Pause{},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Publish
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch1", Data: []byte("paused-msg")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should NOT receive (paused)
+	recvCh := make(chan *pb.Message, 1)
+	go func() {
+		m, err := stream.Recv()
+		if err == nil {
+			recvCh <- m
+		}
+	}()
+
+	select {
+	case <-recvCh:
+		t.Fatal("received message while paused")
+	case <-time.After(300 * time.Millisecond):
+		// Good
+	}
+
+	// Resume
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Resume{
+			Resume: &pb.Resume{},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case msg := <-recvCh:
+		if string(msg.Data) != "paused-msg" {
+			t.Fatalf("expected paused-msg, got %s", msg.Data)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for message after resume")
+	}
+}
+
 func TestBrokerExclusiveMode_MidStreamAddRemove(t *testing.T) {
 	_, bc, _, _, cleanup := startBufconn(t, nil)
 	defer cleanup()
