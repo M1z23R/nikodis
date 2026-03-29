@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package nikodis;
+
+option go_package = "github.com/dimitrije/nikodis/pkg/gen";
+
+// --- Cache ---
+
+service CacheService {
+  rpc Set(SetRequest) returns (SetResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+}
+
+message SetRequest {
+  string key = 1;
+  bytes value = 2;
+  optional uint64 ttl_seconds = 3;
+}
+message SetResponse {}
+
+message GetRequest {
+  string key = 1;
+}
+message GetResponse {
+  bytes value = 1;
+  bool found = 2;
+}
+
+message DeleteRequest {
+  string key = 1;
+}
+message DeleteResponse {
+  bool deleted = 1;
+}
+
+// --- Broker ---
+
+service BrokerService {
+  rpc Publish(PublishRequest) returns (PublishResponse);
+  rpc Subscribe(stream SubscribeStream) returns (stream Message);
+}
+
+message PublishRequest {
+  string channel = 1;
+  bytes data = 2;
+  optional uint64 ack_timeout_seconds = 3;
+}
+message PublishResponse {
+  string message_id = 1;
+}
+
+message SubscribeStream {
+  oneof action {
+    SubscribeRequest subscribe = 1;
+    Ack ack = 2;
+    Pause pause = 3;
+    Resume resume = 4;
+  }
+}
+
+message SubscribeRequest {
+  string channel = 1;
+}
+message Ack {
+  string message_id = 1;
+}
+message Pause {}
+message Resume {}
+
+message Message {
+  string id = 1;
+  string channel = 2;
+  bytes data = 3;
+  uint32 delivery_attempt = 4;
+}
