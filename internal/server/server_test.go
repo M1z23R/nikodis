@@ -928,6 +928,151 @@ func TestBrokerExclusiveMode_MidStreamAddRemove(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Client SubscribeExclusive / SubscribeIndependent tests
+// ---------------------------------------------------------------------------
+
+func TestClientSubscribeExclusive(t *testing.T) {
+	store := cache.New(nil)
+	b := broker.New(broker.Config{
+		MaxBufferSize:     100,
+		DefaultAckTimeout: 5 * time.Second,
+		MaxRedeliveries:   3,
+	}, nil)
+
+	srv, err := NewServer(store, b, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go srv.Start()
+	defer func() {
+		srv.GracefulStop()
+		b.Close()
+		store.Close()
+	}()
+
+	addr := fmt.Sprintf("localhost:%d", srv.Port())
+
+	c, err := client.New(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	ctx := context.Background()
+	sub, err := c.SubscribeExclusive(ctx, "tasks", "alerts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sub.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	_, err = c.Publish(ctx, "tasks", []byte("task-1"), 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Publish(ctx, "alerts", []byte("alert-1"), 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should receive one message
+	select {
+	case msg := <-sub.Messages():
+		if err := msg.Ack(); err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for first message")
+	}
+
+	// Should receive second after ack
+	select {
+	case msg := <-sub.Messages():
+		if err := msg.Ack(); err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for second message")
+	}
+}
+
+func TestClientSubscribeIndependent(t *testing.T) {
+	store := cache.New(nil)
+	b := broker.New(broker.Config{
+		MaxBufferSize:     100,
+		DefaultAckTimeout: 5 * time.Second,
+		MaxRedeliveries:   3,
+	}, nil)
+
+	srv, err := NewServer(store, b, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go srv.Start()
+	defer func() {
+		srv.GracefulStop()
+		b.Close()
+		store.Close()
+	}()
+
+	addr := fmt.Sprintf("localhost:%d", srv.Port())
+
+	c, err := client.New(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	ctx := context.Background()
+	subs, err := c.SubscribeIndependent(ctx, "jobs", "logs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		for _, s := range subs {
+			s.Close()
+		}
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	_, err = c.Publish(ctx, "jobs", []byte("job-1"), 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Publish(ctx, "logs", []byte("log-1"), 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Each channel's subscription should get its own message
+	select {
+	case msg := <-subs["jobs"].Messages():
+		if string(msg.Data) != "job-1" {
+			t.Fatalf("expected job-1, got %s", msg.Data)
+		}
+		if err := msg.Ack(); err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for jobs message")
+	}
+
+	select {
+	case msg := <-subs["logs"].Messages():
+		if string(msg.Data) != "log-1" {
+			t.Fatalf("expected log-1, got %s", msg.Data)
+		}
+		if err := msg.Ack(); err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for logs message")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Full-stack integration test
 // ---------------------------------------------------------------------------
 
@@ -992,7 +1137,7 @@ func TestIntegration_FullStack(t *testing.T) {
 		defer c.Close()
 		ctx := context.Background()
 
-		sub, err := c.Subscribe(ctx, "tasks")
+		sub, err := c.SubscribeExclusive(ctx, "tasks")
 		if err != nil {
 			t.Fatal(err)
 		}

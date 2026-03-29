@@ -91,18 +91,40 @@ func (c *Client) Publish(ctx context.Context, channel string, data []byte, ackTi
 	return resp.MessageId, nil
 }
 
-func (c *Client) Subscribe(ctx context.Context, channel string) (*Subscription, error) {
+func (c *Client) SubscribeExclusive(ctx context.Context, channels ...string) (*Subscription, error) {
 	stream, err := c.broker.Subscribe(c.withMeta(ctx))
 	if err != nil {
 		return nil, err
 	}
 	err = stream.Send(&pb.SubscribeStream{
-		Action: &pb.SubscribeStream_Subscribe{
-			Subscribe: &pb.SubscribeRequest{Channel: channel},
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     channels,
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
 		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	return newSubscription(stream), nil
+	return newExclusiveSubscription(stream), nil
+}
+
+func (c *Client) SubscribeIndependent(ctx context.Context, channels ...string) (map[string]*Subscription, error) {
+	stream, err := c.broker.Subscribe(c.withMeta(ctx))
+	if err != nil {
+		return nil, err
+	}
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     channels,
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_INDEPENDENT,
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return newIndependentSubscriptions(stream, channels), nil
 }
