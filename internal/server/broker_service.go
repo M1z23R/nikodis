@@ -200,6 +200,10 @@ func (s *BrokerService) Subscribe(stream grpc.BidiStreamingServer[pb.SubscribeSt
 			}
 		case cmsg := <-clientMsgs:
 			s.handleClientMsg(cmsg, addChannel, removeChannel, &mu, subs, exclusive, ackGate, &paused)
+			// Return the ack gate token since we didn't send a message.
+			// If the client message was an Ack, handleClientMsg already returned
+			// a token — the default branch safely discards the duplicate since
+			// ackGate is buffered to 1.
 			if exclusive && !paused {
 				select {
 				case ackGate <- struct{}{}:
