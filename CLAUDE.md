@@ -39,7 +39,10 @@ examples/
 - **Namespace isolation**: Multiple apps share one server; cache keys and channels are scoped per namespace
 - **Consumer groups**: Multiple subscribers on the same channel get round-robin delivery (not fan-out)
 - **At-least-once delivery**: Unacked messages requeue after timeout; dropped after max redeliveries (default 5)
-- **Bidirectional streaming**: Subscribe uses a bidirectional gRPC stream for push delivery + client control (pause/resume)
+- **Multi-channel subscribe**: A single gRPC stream can subscribe to multiple channels with two delivery modes:
+  - **Exclusive**: one message at a time across all channels; server blocks dispatch until ack (uses ackGate semaphore)
+  - **Independent**: messages flow freely; each channel gets its own client-side Subscription with per-channel pause/resume
+- **Bidirectional streaming**: Subscribe uses a bidirectional gRPC stream for push delivery + client control (pause/resume, mid-stream add/remove channels)
 - **No persistence**: Graceful shutdown (SIGINT/SIGTERM) waits for inflight acks, then exits
 
 ## Building & Running
