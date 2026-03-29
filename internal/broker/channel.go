@@ -102,8 +102,10 @@ func (c *channel) deliver(msg *Message, sub *Subscriber) {
 		c.handleTimeout(msg.ID)
 	})
 	c.inflight[msg.ID] = inf
+	// Send a copy so the consumer can read fields without racing with redelivery
+	copy := *msg
 	select {
-	case sub.C <- msg:
+	case sub.C <- &copy:
 	default:
 		// Channel full — requeue
 		inf.timer.Stop()
