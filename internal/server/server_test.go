@@ -440,6 +440,228 @@ func TestBrokerOnlyOneSubscriberGetsMessage(t *testing.T) {
 	}
 }
 
+func TestBrokerExclusiveMode_BlocksUntilAck(t *testing.T) {
+	_, bc, _, _, cleanup := startBufconn(t, nil)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stream, err := bc.Subscribe(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Send init with exclusive mode and one channel
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch1"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Publish two messages
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch1", Data: []byte("msg1")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch1", Data: []byte("msg2")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should receive first message
+	msg1, err := stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(msg1.Data) != "msg1" {
+		t.Fatalf("expected msg1, got %s", msg1.Data)
+	}
+
+	// Second message should NOT arrive yet (exclusive mode blocks)
+	recvCh := make(chan *pb.Message, 1)
+	go func() {
+		m, err := stream.Recv()
+		if err == nil {
+			recvCh <- m
+		}
+	}()
+
+	select {
+	case <-recvCh:
+		t.Fatal("received second message before acking first — exclusive mode violated")
+	case <-time.After(300 * time.Millisecond):
+		// Good — blocked as expected
+	}
+
+	// Ack first message — should unblock second
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Ack{
+			Ack: &pb.Ack{MessageId: msg1.Id},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case msg2 := <-recvCh:
+		if string(msg2.Data) != "msg2" {
+			t.Fatalf("expected msg2, got %s", msg2.Data)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for second message after ack")
+	}
+}
+
+func TestBrokerMultiChannel_ReceivesFromAll(t *testing.T) {
+	_, bc, _, _, cleanup := startBufconn(t, nil)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stream, err := bc.Subscribe(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch-a", "ch-b"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_INDEPENDENT,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch-a", Data: []byte("from-a")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch-b", Data: []byte("from-b")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	received := map[string]string{}
+	for i := 0; i < 2; i++ {
+		msg, err := stream.Recv()
+		if err != nil {
+			t.Fatal(err)
+		}
+		received[msg.Channel] = string(msg.Data)
+
+		// Ack each message
+		err = stream.Send(&pb.SubscribeStream{
+			Action: &pb.SubscribeStream_Ack{
+				Ack: &pb.Ack{MessageId: msg.Id},
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if received["ch-a"] != "from-a" {
+		t.Fatalf("expected 'from-a' from ch-a, got %q", received["ch-a"])
+	}
+	if received["ch-b"] != "from-b" {
+		t.Fatalf("expected 'from-b' from ch-b, got %q", received["ch-b"])
+	}
+}
+
+func TestBrokerExclusiveMode_BlocksAcrossChannels(t *testing.T) {
+	_, bc, _, _, cleanup := startBufconn(t, nil)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stream, err := bc.Subscribe(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch-x", "ch-y"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Publish to both channels
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch-x", Data: []byte("x-msg")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch-y", Data: []byte("y-msg")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Receive first message (could be from either channel)
+	msg1, err := stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Second message should be blocked
+	recvCh := make(chan *pb.Message, 1)
+	go func() {
+		m, err := stream.Recv()
+		if err == nil {
+			recvCh <- m
+		}
+	}()
+
+	select {
+	case <-recvCh:
+		t.Fatal("received second message before acking first — exclusive cross-channel violated")
+	case <-time.After(300 * time.Millisecond):
+		// Good
+	}
+
+	// Ack first
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Ack{
+			Ack: &pb.Ack{MessageId: msg1.Id},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case msg2 := <-recvCh:
+		if msg2 == nil {
+			t.Fatal("expected second message")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for second message after ack")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Full-stack integration test
 // ---------------------------------------------------------------------------
