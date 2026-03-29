@@ -662,6 +662,96 @@ func TestBrokerExclusiveMode_BlocksAcrossChannels(t *testing.T) {
 	}
 }
 
+func TestBrokerExclusiveMode_MidStreamAddRemove(t *testing.T) {
+	_, bc, _, _, cleanup := startBufconn(t, nil)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stream, err := bc.Subscribe(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Start with one channel
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch1"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Add a second channel mid-stream
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Subscribe{
+			Subscribe: &pb.SubscribeRequest{Channel: "ch2"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Publish to the newly added channel
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch2", Data: []byte("from-ch2")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg, err := stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Channel != "ch2" || string(msg.Data) != "from-ch2" {
+		t.Fatalf("expected ch2/from-ch2, got %s/%s", msg.Channel, msg.Data)
+	}
+
+	// Ack it
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Ack{
+			Ack: &pb.Ack{MessageId: msg.Id},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Remove ch2
+	err = stream.Send(&pb.SubscribeStream{
+		Action: &pb.SubscribeStream_Unsubscribe{
+			Unsubscribe: &pb.UnsubscribeRequest{Channel: "ch2"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Publish to ch1 — should still work
+	_, err = bc.Publish(ctx, &pb.PublishRequest{Channel: "ch1", Data: []byte("from-ch1")})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg, err = stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Channel != "ch1" || string(msg.Data) != "from-ch1" {
+		t.Fatalf("expected ch1/from-ch1, got %s/%s", msg.Channel, msg.Data)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Full-stack integration test
 // ---------------------------------------------------------------------------
