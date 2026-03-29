@@ -1,0 +1,6 @@
+{
+  "namespaces": {
+    "myapp": "generate-a-strong-token-here",
+    "another-app": "another-strong-token"
+  }
+}

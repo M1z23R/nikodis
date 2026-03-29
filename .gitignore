@@ -1,3 +1,5 @@
 /nikodis
+/bin/
 /logs/
 *.log
+.env
