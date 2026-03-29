@@ -9,11 +9,15 @@ func newQueue(maxSize int) *queue {
 	return &queue{maxSize: maxSize}
 }
 
-func (q *queue) push(m *Message) {
+// push adds a message. Returns the dropped message if buffer overflowed, nil otherwise.
+func (q *queue) push(m *Message) *Message {
+	var dropped *Message
 	if len(q.items) >= q.maxSize {
-		q.items = q.items[1:] // drop oldest
+		dropped = q.items[0]
+		q.items = q.items[1:]
 	}
 	q.items = append(q.items, m)
+	return dropped
 }
 
 func (q *queue) pop() *Message {

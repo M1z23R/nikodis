@@ -17,7 +17,11 @@ type channel struct {
 	inflight    map[string]*inflight
 	subscribers []*Subscriber
 	rrIndex     int
-	onTimeout   func(msg *Message) // called when message exceeds max redeliveries (dropped)
+	onDrop      func(msg *Message)    // called when message exceeds max redeliveries
+	onOverflow  func(msg *Message)    // called when buffer overflow drops oldest message
+	onDeliver   func(msg *Message)    // called when message is delivered to subscriber
+	onTimeout   func(msg *Message)    // called when ack timeout fires
+	onRequeue   func(msg *Message)    // called when message is requeued
 }
 
 func newChannel(maxBufferSize int) *channel {
@@ -49,6 +53,9 @@ func (c *channel) removeSubscriber(sub *Subscriber) {
 			inf.timer.Stop()
 			delete(c.inflight, id)
 			c.pending.push(inf.msg)
+			if c.onRequeue != nil {
+				c.onRequeue(inf.msg)
+			}
 		}
 	}
 	c.drainPending()
@@ -57,7 +64,9 @@ func (c *channel) removeSubscriber(sub *Subscriber) {
 func (c *channel) enqueue(msg *Message) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.pending.push(msg)
+	if dropped := c.pending.push(msg); dropped != nil && c.onOverflow != nil {
+		c.onOverflow(dropped)
+	}
 	c.drainPending()
 }
 
@@ -75,7 +84,9 @@ func (c *channel) drainPending() {
 			return
 		}
 		msg := c.pending.pop()
-		c.deliver(msg, sub)
+		if !c.deliver(msg, sub) {
+			return // subscriber buffer full, stop draining
+		}
 	}
 }
 
@@ -95,7 +106,8 @@ func (c *channel) nextEligibleSubscriber() *Subscriber {
 	return nil
 }
 
-func (c *channel) deliver(msg *Message, sub *Subscriber) {
+// deliver sends a message to a subscriber. Returns true if sent, false if subscriber buffer full.
+func (c *channel) deliver(msg *Message, sub *Subscriber) bool {
 	msg.DeliveryAttempt++
 	inf := &inflight{msg: msg, subscriber: sub}
 	inf.timer = time.AfterFunc(msg.AckTimeout, func() {
@@ -103,14 +115,19 @@ func (c *channel) deliver(msg *Message, sub *Subscriber) {
 	})
 	c.inflight[msg.ID] = inf
 	// Send a copy so the consumer can read fields without racing with redelivery
-	copy := *msg
+	msgCopy := *msg
 	select {
-	case sub.C <- &copy:
+	case sub.C <- &msgCopy:
+		if c.onDeliver != nil {
+			c.onDeliver(msg)
+		}
+		return true
 	default:
-		// Channel full — requeue
+		// Subscriber buffer full — requeue
 		inf.timer.Stop()
 		delete(c.inflight, msg.ID)
 		c.pending.push(msg)
+		return false
 	}
 }
 
@@ -134,13 +151,19 @@ func (c *channel) handleTimeout(messageID string) {
 		return
 	}
 	delete(c.inflight, messageID)
+	if c.onTimeout != nil {
+		c.onTimeout(inf.msg)
+	}
 	if inf.msg.DeliveryAttempt > inf.msg.MaxRedeliveries {
-		if c.onTimeout != nil {
-			c.onTimeout(inf.msg)
+		if c.onDrop != nil {
+			c.onDrop(inf.msg)
 		}
 		return // drop
 	}
 	c.pending.push(inf.msg)
+	if c.onRequeue != nil {
+		c.onRequeue(inf.msg)
+	}
 	c.drainPending()
 }
 

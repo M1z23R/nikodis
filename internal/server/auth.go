@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/subtle"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -41,7 +42,7 @@ func authenticate(ctx context.Context, cfg *config.Config) error {
 		return nil // empty token = no auth for this namespace
 	}
 	token := extractToken(ctx)
-	if token != expected {
+	if subtle.ConstantTimeCompare([]byte(token), []byte(expected)) != 1 {
 		return status.Error(codes.Unauthenticated, "invalid token")
 	}
 	return nil

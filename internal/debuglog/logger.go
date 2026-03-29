@@ -84,7 +84,10 @@ func (f *FileLogger) Close() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.file != nil {
-		return f.file.Close()
+		err := f.file.Close()
+		f.file = nil
+		f.current = ""
+		return err
 	}
 	return nil
 }

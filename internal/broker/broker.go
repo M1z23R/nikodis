@@ -37,10 +37,42 @@ func (b *Broker) getOrCreateChannel(name string) *channel {
 	ch, ok := b.channels[name]
 	if !ok {
 		ch = newChannel(b.cfg.MaxBufferSize)
-		ch.onTimeout = func(msg *Message) {
+		ch.onDrop = func(msg *Message) {
 			b.logger.Log(debuglog.Event{
 				Component: "broker",
 				Action:    "drop_max_redelivery",
+				Channel:   name,
+				MessageID: msg.ID,
+			})
+		}
+		ch.onOverflow = func(msg *Message) {
+			b.logger.Log(debuglog.Event{
+				Component: "broker",
+				Action:    "drop_buffer_overflow",
+				Channel:   name,
+				MessageID: msg.ID,
+			})
+		}
+		ch.onDeliver = func(msg *Message) {
+			b.logger.Log(debuglog.Event{
+				Component: "broker",
+				Action:    "deliver",
+				Channel:   name,
+				MessageID: msg.ID,
+			})
+		}
+		ch.onTimeout = func(msg *Message) {
+			b.logger.Log(debuglog.Event{
+				Component: "broker",
+				Action:    "ack_timeout",
+				Channel:   name,
+				MessageID: msg.ID,
+			})
+		}
+		ch.onRequeue = func(msg *Message) {
+			b.logger.Log(debuglog.Event{
+				Component: "broker",
+				Action:    "requeue",
 				Channel:   name,
 				MessageID: msg.ID,
 			})
