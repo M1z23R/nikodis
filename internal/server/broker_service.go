@@ -57,7 +57,15 @@ func (s *BrokerService) Subscribe(stream grpc.BidiStreamingServer[pb.SubscribeSt
 	ns := extractNamespace(stream.Context())
 	exclusive := initReq.DeliveryMode == pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE
 
-	merged := make(chan *pb.Message, 64)
+	// In exclusive mode, use an unbuffered merged channel so fan-in goroutines
+	// block until the current message is sent and acked. This prevents messages
+	// from being pulled out of broker subscriber channels (starting ack timers)
+	// before the client is ready to process them.
+	mergedBuf := 64
+	if exclusive {
+		mergedBuf = 0
+	}
+	merged := make(chan *pb.Message, mergedBuf)
 	var mu sync.Mutex
 	subs := make(map[string]*channelSub)
 	stopFuncs := make(map[string]context.CancelFunc)
