@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dimitrije/nikodis/internal/debuglog"
+	"github.com/M1z23R/nikodis/internal/debuglog"
 )
 
 type Config struct {

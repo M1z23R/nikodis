@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/dimitrije/nikodis/internal/config"
+	"github.com/M1z23R/nikodis/internal/config"
 )
 
 func newAuthInterceptor(cfg *config.Config) grpc.UnaryServerInterceptor {

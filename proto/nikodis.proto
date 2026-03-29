@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package nikodis;
 
-option go_package = "github.com/dimitrije/nikodis/pkg/gen";
+option go_package = "github.com/M1z23R/nikodis/pkg/gen";
 
 // --- Cache ---
 

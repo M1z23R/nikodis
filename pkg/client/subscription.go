@@ -3,7 +3,7 @@ package client
 import (
 	"sync"
 
-	pb "github.com/dimitrije/nikodis/pkg/gen"
+	pb "github.com/M1z23R/nikodis/pkg/gen"
 )
 
 // sendMu protects concurrent stream.Send calls. Shared across all

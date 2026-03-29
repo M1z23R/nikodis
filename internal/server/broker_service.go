@@ -10,9 +10,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/dimitrije/nikodis/pkg/gen"
+	pb "github.com/M1z23R/nikodis/pkg/gen"
 
-	"github.com/dimitrije/nikodis/internal/broker"
+	"github.com/M1z23R/nikodis/internal/broker"
 )
 
 type BrokerService struct {

@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dimitrije/nikodis/internal/broker"
-	"github.com/dimitrije/nikodis/internal/cache"
-	"github.com/dimitrije/nikodis/internal/config"
-	"github.com/dimitrije/nikodis/internal/debuglog"
-	"github.com/dimitrije/nikodis/internal/server"
+	"github.com/M1z23R/nikodis/internal/broker"
+	"github.com/M1z23R/nikodis/internal/cache"
+	"github.com/M1z23R/nikodis/internal/config"
+	"github.com/M1z23R/nikodis/internal/debuglog"
+	"github.com/M1z23R/nikodis/internal/server"
 )
 
 func main() {

@@ -1004,7 +1004,7 @@ const file_nikodis_proto_rawDesc = "" +
 	"\x06Delete\x12\x16.nikodis.DeleteRequest\x1a\x17.nikodis.DeleteResponse2\x8a\x01\n" +
 	"\rBrokerService\x12<\n" +
 	"\aPublish\x12\x17.nikodis.PublishRequest\x1a\x18.nikodis.PublishResponse\x12;\n" +
-	"\tSubscribe\x12\x18.nikodis.SubscribeStream\x1a\x10.nikodis.Message(\x010\x01B&Z$github.com/dimitrije/nikodis/pkg/genb\x06proto3"
+	"\tSubscribe\x12\x18.nikodis.SubscribeStream\x1a\x10.nikodis.Message(\x010\x01B#Z!github.com/M1z23R/nikodis/pkg/genb\x06proto3"
 
 var (
 	file_nikodis_proto_rawDescOnce sync.Once

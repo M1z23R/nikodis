@@ -10,7 +10,7 @@ Single binary, single instance, no persistence — data lives only while the ser
 ## Installation
 
 ```bash
-go get github.com/dimitrije/nikodis
+go get github.com/M1z23R/nikodis
 ```
 
 ## Running the Server
@@ -42,7 +42,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dimitrije/nikodis/pkg/client"
+	"github.com/M1z23R/nikodis/pkg/client"
 )
 
 func main() {
@@ -77,7 +77,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dimitrije/nikodis/pkg/client"
+	"github.com/M1z23R/nikodis/pkg/client"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/dimitrije/nikodis
+module github.com/M1z23R/nikodis
 
 go 1.25.7
 

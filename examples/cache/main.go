@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/dimitrije/nikodis/pkg/client"
+	"github.com/M1z23R/nikodis/pkg/client"
 )
 
 func main() {

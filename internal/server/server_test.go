@@ -14,12 +14,12 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	pb "github.com/dimitrije/nikodis/pkg/gen"
+	pb "github.com/M1z23R/nikodis/pkg/gen"
 
-	"github.com/dimitrije/nikodis/internal/broker"
-	"github.com/dimitrije/nikodis/internal/cache"
-	"github.com/dimitrije/nikodis/internal/config"
-	"github.com/dimitrije/nikodis/pkg/client"
+	"github.com/M1z23R/nikodis/internal/broker"
+	"github.com/M1z23R/nikodis/internal/cache"
+	"github.com/M1z23R/nikodis/internal/config"
+	"github.com/M1z23R/nikodis/pkg/client"
 )
 
 // ---------------------------------------------------------------------------

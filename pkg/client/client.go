@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
-	pb "github.com/dimitrije/nikodis/pkg/gen"
+	pb "github.com/M1z23R/nikodis/pkg/gen"
 )
 
 type Client struct {
