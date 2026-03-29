@@ -17,16 +17,16 @@ internal/
   server/                    gRPC service layer
     server.go                Server setup and wiring
     cache_service.go         CacheService gRPC implementation
-    broker_service.go        BrokerService gRPC implementation (bidirectional streaming)
+    broker_service.go        BrokerService gRPC implementation (multi-channel, exclusive/independent modes)
     auth.go                  Per-namespace token validation via x-nikodis-token metadata
     metadata.go              gRPC metadata extraction (namespace, token)
   config/                    Namespace/token config loading (JSON/YAML)
   debuglog/                  Optional structured JSON-lines debug logging
 pkg/
   client/                    Public client library (what users import)
-    client.go                Client struct — New(), Set(), Get(), Delete(), Publish(), Subscribe(), Close()
+    client.go                Client struct — New(), Set(), Get(), Delete(), Publish(), SubscribeExclusive(), SubscribeIndependent(), Close()
     options.go               Functional options — WithNamespace(), WithToken(), WithDialOptions()
-    subscription.go          Subscription type — Messages(), Pause(), Resume(), Close(); Message type with Ack()
+    subscription.go          Subscription type — Messages(), Pause(), Resume(), Add(), Remove(), Close(); Message type with Ack()
   gen/                       Generated protobuf/gRPC code (do not edit, regenerate with `make proto`)
 proto/nikodis.proto          Service definitions — CacheService (Set/Get/Delete), BrokerService (Publish/Subscribe)
 examples/
@@ -65,12 +65,23 @@ deleted, err := c.Delete(ctx, key)
 
 // Pub/Sub
 msgID, err := c.Publish(ctx, channel, data, ackTimeout)  // ackTimeout 0 = server default
-sub, err := c.Subscribe(ctx, channel)
+
+// Exclusive — one message at a time across all channels
+sub, err := c.SubscribeExclusive(ctx, "ch1", "ch2", "ch3")
 msg := <-sub.Messages()                      // Message{ID, Channel, Data, DeliveryAttempt}
-msg.Ack()
-sub.Pause()
-sub.Resume()
+msg.Ack()                                    // unblocks next delivery
+sub.Add("ch4")                               // mid-stream add
+sub.Remove("ch2")                            // mid-stream remove
+sub.Pause()                                  // global pause
+sub.Resume()                                 // global resume
 sub.Close()
+
+// Independent — per-channel subscriptions
+subs, err := c.SubscribeIndependent(ctx, "jobs", "logs")
+msg := <-subs["jobs"].Messages()
+msg.Ack()
+subs["jobs"].Pause()
+subs["jobs"].Resume()
 ```
 
 ## Testing
