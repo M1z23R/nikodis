@@ -9,9 +9,51 @@ In-memory cache and message broker server in Go, exposed via gRPC, with a shippe
 - **Single binary**, single instance deployment. In-memory only — nothing survives restart.
 - **Go client library** with precompiled protobuf — consumers never touch proto files.
 
+## Configuration
+
+Server config is loaded from a file specified via `NIKODIS_CONFIG_FILE` env var. Supports both JSON and YAML — the loader tries JSON first, falls back to YAML. If no config file is specified, all namespaces are open (no auth).
+
+Example (JSON):
+```json
+{
+  "namespaces": {
+    "myapp": "secret-token-abc",
+    "otherapp": "secret-token-xyz",
+    "default": ""
+  }
+}
+```
+
+Example (YAML):
+```yaml
+namespaces:
+  myapp: "secret-token-abc"
+  otherapp: "secret-token-xyz"
+  default: ""
+```
+
+An empty string or absent token means no auth required for that namespace.
+
+## Authentication
+
+- Per-namespace token-based auth.
+- Client sends `x-nikodis-token` gRPC metadata on every call.
+- A single gRPC interceptor (unary + stream) validates the token against the namespace's configured value. Mismatch → gRPC `UNAUTHENTICATED` error.
+- If no config file is loaded, auth is disabled entirely — all namespaces are open.
+
+## Namespaces
+
+All cache keys and broker channels are scoped to a **namespace**, allowing multiple applications to share one server without interference.
+
+- Client provides a namespace at connection time: `client.New(addr, client.WithNamespace("myapp"))`.
+- Namespace is sent as gRPC metadata (`x-nikodis-namespace`) on every RPC call.
+- Internally, keys and channels are prefixed with the namespace (e.g., `myapp:key`, `myapp:orders`). This is transparent to clients.
+- Default namespace: `"default"` when none is specified.
+- Namespaces are created implicitly — no setup required.
+
 ## Proto API
 
-Two gRPC services in one proto package.
+Two gRPC services in one proto package. All RPCs read the `x-nikodis-namespace` metadata header for scoping.
 
 ### CacheService
 
@@ -160,7 +202,10 @@ Thin adapters calling into the engines.
 Wraps generated gRPC stubs. Users never import the `gen` package directly.
 
 ```go
-c, err := client.New("localhost:6390")
+c, err := client.New("localhost:6390",
+    client.WithNamespace("myapp"),
+    client.WithToken("secret-token-abc"),
+)
 
 // Cache
 err = c.Set(ctx, "key", []byte("value"), 60*time.Second) // with TTL
