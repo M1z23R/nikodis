@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/dimitrije/nikodis/internal/broker"
 	"github.com/dimitrije/nikodis/internal/cache"
 	"github.com/dimitrije/nikodis/internal/config"
+	"github.com/dimitrije/nikodis/pkg/client"
 )
 
 // ---------------------------------------------------------------------------
@@ -436,4 +438,133 @@ func TestBrokerOnlyOneSubscriberGetsMessage(t *testing.T) {
 	if received != 1 {
 		t.Fatalf("expected exactly 1 subscriber to receive the message, got %d", received)
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Full-stack integration test
+// ---------------------------------------------------------------------------
+
+func TestIntegration_FullStack(t *testing.T) {
+	store := cache.New(nil)
+	b := broker.New(broker.Config{
+		MaxBufferSize:     100,
+		DefaultAckTimeout: 5 * time.Second,
+		MaxRedeliveries:   3,
+	}, nil)
+	cfg := &config.Config{Namespaces: map[string]string{
+		"testapp": "testtoken",
+		"default": "",
+	}}
+
+	srv, err := NewServer(store, b, cfg, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go srv.Start()
+	defer func() {
+		srv.GracefulStop()
+		b.Close()
+		store.Close()
+	}()
+
+	addr := fmt.Sprintf("localhost:%d", srv.Port())
+
+	t.Run("cache", func(t *testing.T) {
+		c, err := client.New(addr, client.WithNamespace("testapp"), client.WithToken("testtoken"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		ctx := context.Background()
+
+		if err := c.Set(ctx, "hello", []byte("world"), 0); err != nil {
+			t.Fatal(err)
+		}
+		val, found, err := c.Get(ctx, "hello")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !found || string(val) != "world" {
+			t.Errorf("expected 'world', got found=%v val=%q", found, val)
+		}
+
+		deleted, err := c.Delete(ctx, "hello")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !deleted {
+			t.Error("expected deleted")
+		}
+	})
+
+	t.Run("broker", func(t *testing.T) {
+		c, err := client.New(addr, client.WithNamespace("testapp"), client.WithToken("testtoken"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		ctx := context.Background()
+
+		sub, err := c.Subscribe(ctx, "tasks")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer sub.Close()
+
+		time.Sleep(50 * time.Millisecond)
+
+		msgID, err := c.Publish(ctx, "tasks", []byte("do-something"), 5*time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if msgID == "" {
+			t.Fatal("expected message ID")
+		}
+
+		select {
+		case msg := <-sub.Messages():
+			if string(msg.Data) != "do-something" {
+				t.Errorf("expected 'do-something', got %q", msg.Data)
+			}
+			if err := msg.Ack(); err != nil {
+				t.Fatal(err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout")
+		}
+	})
+
+	t.Run("auth_rejected", func(t *testing.T) {
+		c, err := client.New(addr, client.WithNamespace("testapp"), client.WithToken("wrong"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+
+		err = c.Set(context.Background(), "k", []byte("v"), 0)
+		if err == nil {
+			t.Fatal("expected auth error")
+		}
+	})
+
+	t.Run("namespace_isolation", func(t *testing.T) {
+		c1, _ := client.New(addr)
+		defer c1.Close()
+		c2, _ := client.New(addr, client.WithNamespace("testapp"), client.WithToken("testtoken"))
+		defer c2.Close()
+		ctx := context.Background()
+
+		c1.Set(ctx, "shared", []byte("from-default"), 0)
+		c2.Set(ctx, "shared", []byte("from-testapp"), 0)
+
+		v1, _, _ := c1.Get(ctx, "shared")
+		v2, _, _ := c2.Get(ctx, "shared")
+
+		if string(v1) != "from-default" {
+			t.Errorf("default ns: expected 'from-default', got %q", v1)
+		}
+		if string(v2) != "from-testapp" {
+			t.Errorf("testapp ns: expected 'from-testapp', got %q", v2)
+		}
+	})
 }
