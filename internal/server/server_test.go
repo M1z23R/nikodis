@@ -303,10 +303,12 @@ func TestBrokerPublishSubscribeAck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Send subscribe request
 	err = stream.Send(&pb.SubscribeStream{
-		Action: &pb.SubscribeStream_Subscribe{
-			Subscribe: &pb.SubscribeRequest{Channel: "ch1"},
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch1"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
 		},
 	})
 	if err != nil {
@@ -367,8 +369,11 @@ func TestBrokerOnlyOneSubscriberGetsMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = stream1.Send(&pb.SubscribeStream{
-		Action: &pb.SubscribeStream_Subscribe{
-			Subscribe: &pb.SubscribeRequest{Channel: "ch2"},
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch2"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
 		},
 	})
 	if err != nil {
@@ -380,8 +385,11 @@ func TestBrokerOnlyOneSubscriberGetsMessage(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = stream2.Send(&pb.SubscribeStream{
-		Action: &pb.SubscribeStream_Subscribe{
-			Subscribe: &pb.SubscribeRequest{Channel: "ch2"},
+		Action: &pb.SubscribeStream_Init{
+			Init: &pb.SubscribeInit{
+				Channels:     []string{"ch2"},
+				DeliveryMode: pb.DeliveryMode_DELIVERY_MODE_EXCLUSIVE,
+			},
 		},
 	})
 	if err != nil {
