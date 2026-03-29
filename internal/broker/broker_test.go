@@ -293,13 +293,16 @@ func TestBroker_MaxRedeliveries_DropsMessage(t *testing.T) {
 	sub, _ := b.Subscribe("ch")
 	b.Publish("ch", []byte("data"), 50*time.Millisecond)
 
-	<-sub.C
-	select {
-	case <-sub.C:
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for redelivery")
+	// With MaxRedeliveries=2: 1 original + 2 redeliveries = 3 total deliveries
+	for i := 0; i < 3; i++ {
+		select {
+		case <-sub.C:
+		case <-time.After(time.Second):
+			t.Fatalf("timeout waiting for delivery %d", i+1)
+		}
 	}
 
+	// Should not get a 4th delivery
 	select {
 	case <-sub.C:
 		t.Fatal("should not receive after max redeliveries")

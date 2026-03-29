@@ -132,7 +132,7 @@ func (c *channel) handleTimeout(messageID string) {
 		return
 	}
 	delete(c.inflight, messageID)
-	if inf.msg.DeliveryAttempt >= inf.msg.MaxRedeliveries {
+	if inf.msg.DeliveryAttempt > inf.msg.MaxRedeliveries {
 		if c.onTimeout != nil {
 			c.onTimeout(inf.msg)
 		}
