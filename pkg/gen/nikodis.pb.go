@@ -21,6 +21,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type DeliveryMode int32
+
+const (
+	DeliveryMode_DELIVERY_MODE_INDEPENDENT DeliveryMode = 0
+	DeliveryMode_DELIVERY_MODE_EXCLUSIVE   DeliveryMode = 1
+)
+
+// Enum value maps for DeliveryMode.
+var (
+	DeliveryMode_name = map[int32]string{
+		0: "DELIVERY_MODE_INDEPENDENT",
+		1: "DELIVERY_MODE_EXCLUSIVE",
+	}
+	DeliveryMode_value = map[string]int32{
+		"DELIVERY_MODE_INDEPENDENT": 0,
+		"DELIVERY_MODE_EXCLUSIVE":   1,
+	}
+)
+
+func (x DeliveryMode) Enum() *DeliveryMode {
+	p := new(DeliveryMode)
+	*p = x
+	return p
+}
+
+func (x DeliveryMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DeliveryMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_nikodis_proto_enumTypes[0].Descriptor()
+}
+
+func (DeliveryMode) Type() protoreflect.EnumType {
+	return &file_nikodis_proto_enumTypes[0]
+}
+
+func (x DeliveryMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DeliveryMode.Descriptor instead.
+func (DeliveryMode) EnumDescriptor() ([]byte, []int) {
+	return file_nikodis_proto_rawDescGZIP(), []int{0}
+}
+
 type SetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -405,11 +451,65 @@ func (x *PublishResponse) GetMessageId() string {
 	return ""
 }
 
+type SubscribeInit struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Channels      []string               `protobuf:"bytes,1,rep,name=channels,proto3" json:"channels,omitempty"`
+	DeliveryMode  DeliveryMode           `protobuf:"varint,2,opt,name=delivery_mode,json=deliveryMode,proto3,enum=nikodis.DeliveryMode" json:"delivery_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeInit) Reset() {
+	*x = SubscribeInit{}
+	mi := &file_nikodis_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeInit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeInit) ProtoMessage() {}
+
+func (x *SubscribeInit) ProtoReflect() protoreflect.Message {
+	mi := &file_nikodis_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeInit.ProtoReflect.Descriptor instead.
+func (*SubscribeInit) Descriptor() ([]byte, []int) {
+	return file_nikodis_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SubscribeInit) GetChannels() []string {
+	if x != nil {
+		return x.Channels
+	}
+	return nil
+}
+
+func (x *SubscribeInit) GetDeliveryMode() DeliveryMode {
+	if x != nil {
+		return x.DeliveryMode
+	}
+	return DeliveryMode_DELIVERY_MODE_INDEPENDENT
+}
+
 type SubscribeStream struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Action:
 	//
+	//	*SubscribeStream_Init
 	//	*SubscribeStream_Subscribe
+	//	*SubscribeStream_Unsubscribe
 	//	*SubscribeStream_Ack
 	//	*SubscribeStream_Pause
 	//	*SubscribeStream_Resume
@@ -420,7 +520,7 @@ type SubscribeStream struct {
 
 func (x *SubscribeStream) Reset() {
 	*x = SubscribeStream{}
-	mi := &file_nikodis_proto_msgTypes[8]
+	mi := &file_nikodis_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -432,7 +532,7 @@ func (x *SubscribeStream) String() string {
 func (*SubscribeStream) ProtoMessage() {}
 
 func (x *SubscribeStream) ProtoReflect() protoreflect.Message {
-	mi := &file_nikodis_proto_msgTypes[8]
+	mi := &file_nikodis_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -445,7 +545,7 @@ func (x *SubscribeStream) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeStream.ProtoReflect.Descriptor instead.
 func (*SubscribeStream) Descriptor() ([]byte, []int) {
-	return file_nikodis_proto_rawDescGZIP(), []int{8}
+	return file_nikodis_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SubscribeStream) GetAction() isSubscribeStream_Action {
@@ -455,10 +555,28 @@ func (x *SubscribeStream) GetAction() isSubscribeStream_Action {
 	return nil
 }
 
+func (x *SubscribeStream) GetInit() *SubscribeInit {
+	if x != nil {
+		if x, ok := x.Action.(*SubscribeStream_Init); ok {
+			return x.Init
+		}
+	}
+	return nil
+}
+
 func (x *SubscribeStream) GetSubscribe() *SubscribeRequest {
 	if x != nil {
 		if x, ok := x.Action.(*SubscribeStream_Subscribe); ok {
 			return x.Subscribe
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeStream) GetUnsubscribe() *UnsubscribeRequest {
+	if x != nil {
+		if x, ok := x.Action.(*SubscribeStream_Unsubscribe); ok {
+			return x.Unsubscribe
 		}
 	}
 	return nil
@@ -495,23 +613,35 @@ type isSubscribeStream_Action interface {
 	isSubscribeStream_Action()
 }
 
+type SubscribeStream_Init struct {
+	Init *SubscribeInit `protobuf:"bytes,1,opt,name=init,proto3,oneof"`
+}
+
 type SubscribeStream_Subscribe struct {
-	Subscribe *SubscribeRequest `protobuf:"bytes,1,opt,name=subscribe,proto3,oneof"`
+	Subscribe *SubscribeRequest `protobuf:"bytes,2,opt,name=subscribe,proto3,oneof"`
+}
+
+type SubscribeStream_Unsubscribe struct {
+	Unsubscribe *UnsubscribeRequest `protobuf:"bytes,3,opt,name=unsubscribe,proto3,oneof"`
 }
 
 type SubscribeStream_Ack struct {
-	Ack *Ack `protobuf:"bytes,2,opt,name=ack,proto3,oneof"`
+	Ack *Ack `protobuf:"bytes,4,opt,name=ack,proto3,oneof"`
 }
 
 type SubscribeStream_Pause struct {
-	Pause *Pause `protobuf:"bytes,3,opt,name=pause,proto3,oneof"`
+	Pause *Pause `protobuf:"bytes,5,opt,name=pause,proto3,oneof"`
 }
 
 type SubscribeStream_Resume struct {
-	Resume *Resume `protobuf:"bytes,4,opt,name=resume,proto3,oneof"`
+	Resume *Resume `protobuf:"bytes,6,opt,name=resume,proto3,oneof"`
 }
 
+func (*SubscribeStream_Init) isSubscribeStream_Action() {}
+
 func (*SubscribeStream_Subscribe) isSubscribeStream_Action() {}
+
+func (*SubscribeStream_Unsubscribe) isSubscribeStream_Action() {}
 
 func (*SubscribeStream_Ack) isSubscribeStream_Action() {}
 
@@ -528,7 +658,7 @@ type SubscribeRequest struct {
 
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
-	mi := &file_nikodis_proto_msgTypes[9]
+	mi := &file_nikodis_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -540,7 +670,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nikodis_proto_msgTypes[9]
+	mi := &file_nikodis_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -553,10 +683,54 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_nikodis_proto_rawDescGZIP(), []int{9}
+	return file_nikodis_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SubscribeRequest) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
+}
+
+type UnsubscribeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Channel       string                 `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnsubscribeRequest) Reset() {
+	*x = UnsubscribeRequest{}
+	mi := &file_nikodis_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnsubscribeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnsubscribeRequest) ProtoMessage() {}
+
+func (x *UnsubscribeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nikodis_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnsubscribeRequest.ProtoReflect.Descriptor instead.
+func (*UnsubscribeRequest) Descriptor() ([]byte, []int) {
+	return file_nikodis_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UnsubscribeRequest) GetChannel() string {
 	if x != nil {
 		return x.Channel
 	}
@@ -572,7 +746,7 @@ type Ack struct {
 
 func (x *Ack) Reset() {
 	*x = Ack{}
-	mi := &file_nikodis_proto_msgTypes[10]
+	mi := &file_nikodis_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +758,7 @@ func (x *Ack) String() string {
 func (*Ack) ProtoMessage() {}
 
 func (x *Ack) ProtoReflect() protoreflect.Message {
-	mi := &file_nikodis_proto_msgTypes[10]
+	mi := &file_nikodis_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +771,7 @@ func (x *Ack) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ack.ProtoReflect.Descriptor instead.
 func (*Ack) Descriptor() ([]byte, []int) {
-	return file_nikodis_proto_rawDescGZIP(), []int{10}
+	return file_nikodis_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Ack) GetMessageId() string {
@@ -609,13 +783,14 @@ func (x *Ack) GetMessageId() string {
 
 type Pause struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Channel       string                 `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Pause) Reset() {
 	*x = Pause{}
-	mi := &file_nikodis_proto_msgTypes[11]
+	mi := &file_nikodis_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +802,7 @@ func (x *Pause) String() string {
 func (*Pause) ProtoMessage() {}
 
 func (x *Pause) ProtoReflect() protoreflect.Message {
-	mi := &file_nikodis_proto_msgTypes[11]
+	mi := &file_nikodis_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,18 +815,26 @@ func (x *Pause) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pause.ProtoReflect.Descriptor instead.
 func (*Pause) Descriptor() ([]byte, []int) {
-	return file_nikodis_proto_rawDescGZIP(), []int{11}
+	return file_nikodis_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *Pause) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
 }
 
 type Resume struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Channel       string                 `protobuf:"bytes,1,opt,name=channel,proto3" json:"channel,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Resume) Reset() {
 	*x = Resume{}
-	mi := &file_nikodis_proto_msgTypes[12]
+	mi := &file_nikodis_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -663,7 +846,7 @@ func (x *Resume) String() string {
 func (*Resume) ProtoMessage() {}
 
 func (x *Resume) ProtoReflect() protoreflect.Message {
-	mi := &file_nikodis_proto_msgTypes[12]
+	mi := &file_nikodis_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -676,7 +859,14 @@ func (x *Resume) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Resume.ProtoReflect.Descriptor instead.
 func (*Resume) Descriptor() ([]byte, []int) {
-	return file_nikodis_proto_rawDescGZIP(), []int{12}
+	return file_nikodis_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *Resume) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
 }
 
 type Message struct {
@@ -691,7 +881,7 @@ type Message struct {
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_nikodis_proto_msgTypes[13]
+	mi := &file_nikodis_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -703,7 +893,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_nikodis_proto_msgTypes[13]
+	mi := &file_nikodis_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -716,7 +906,7 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_nikodis_proto_rawDescGZIP(), []int{13}
+	return file_nikodis_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Message) GetId() string {
@@ -777,25 +967,37 @@ const file_nikodis_proto_rawDesc = "" +
 	"\x14_ack_timeout_seconds\"0\n" +
 	"\x0fPublishResponse\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId\"\xcb\x01\n" +
-	"\x0fSubscribeStream\x129\n" +
-	"\tsubscribe\x18\x01 \x01(\v2\x19.nikodis.SubscribeRequestH\x00R\tsubscribe\x12 \n" +
-	"\x03ack\x18\x02 \x01(\v2\f.nikodis.AckH\x00R\x03ack\x12&\n" +
-	"\x05pause\x18\x03 \x01(\v2\x0e.nikodis.PauseH\x00R\x05pause\x12)\n" +
-	"\x06resume\x18\x04 \x01(\v2\x0f.nikodis.ResumeH\x00R\x06resumeB\b\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\"g\n" +
+	"\rSubscribeInit\x12\x1a\n" +
+	"\bchannels\x18\x01 \x03(\tR\bchannels\x12:\n" +
+	"\rdelivery_mode\x18\x02 \x01(\x0e2\x15.nikodis.DeliveryModeR\fdeliveryMode\"\xba\x02\n" +
+	"\x0fSubscribeStream\x12,\n" +
+	"\x04init\x18\x01 \x01(\v2\x16.nikodis.SubscribeInitH\x00R\x04init\x129\n" +
+	"\tsubscribe\x18\x02 \x01(\v2\x19.nikodis.SubscribeRequestH\x00R\tsubscribe\x12?\n" +
+	"\vunsubscribe\x18\x03 \x01(\v2\x1b.nikodis.UnsubscribeRequestH\x00R\vunsubscribe\x12 \n" +
+	"\x03ack\x18\x04 \x01(\v2\f.nikodis.AckH\x00R\x03ack\x12&\n" +
+	"\x05pause\x18\x05 \x01(\v2\x0e.nikodis.PauseH\x00R\x05pause\x12)\n" +
+	"\x06resume\x18\x06 \x01(\v2\x0f.nikodis.ResumeH\x00R\x06resumeB\b\n" +
 	"\x06action\",\n" +
 	"\x10SubscribeRequest\x12\x18\n" +
+	"\achannel\x18\x01 \x01(\tR\achannel\".\n" +
+	"\x12UnsubscribeRequest\x12\x18\n" +
 	"\achannel\x18\x01 \x01(\tR\achannel\"$\n" +
 	"\x03Ack\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x01 \x01(\tR\tmessageId\"\a\n" +
-	"\x05Pause\"\b\n" +
-	"\x06Resume\"r\n" +
+	"message_id\x18\x01 \x01(\tR\tmessageId\"!\n" +
+	"\x05Pause\x12\x18\n" +
+	"\achannel\x18\x01 \x01(\tR\achannel\"\"\n" +
+	"\x06Resume\x12\x18\n" +
+	"\achannel\x18\x01 \x01(\tR\achannel\"r\n" +
 	"\aMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\achannel\x18\x02 \x01(\tR\achannel\x12\x12\n" +
 	"\x04data\x18\x03 \x01(\fR\x04data\x12)\n" +
-	"\x10delivery_attempt\x18\x04 \x01(\rR\x0fdeliveryAttempt2\xad\x01\n" +
+	"\x10delivery_attempt\x18\x04 \x01(\rR\x0fdeliveryAttempt*J\n" +
+	"\fDeliveryMode\x12\x1d\n" +
+	"\x19DELIVERY_MODE_INDEPENDENT\x10\x00\x12\x1b\n" +
+	"\x17DELIVERY_MODE_EXCLUSIVE\x10\x012\xad\x01\n" +
 	"\fCacheService\x120\n" +
 	"\x03Set\x12\x13.nikodis.SetRequest\x1a\x14.nikodis.SetResponse\x120\n" +
 	"\x03Get\x12\x13.nikodis.GetRequest\x1a\x14.nikodis.GetResponse\x129\n" +
@@ -816,43 +1018,50 @@ func file_nikodis_proto_rawDescGZIP() []byte {
 	return file_nikodis_proto_rawDescData
 }
 
-var file_nikodis_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_nikodis_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_nikodis_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_nikodis_proto_goTypes = []any{
-	(*SetRequest)(nil),       // 0: nikodis.SetRequest
-	(*SetResponse)(nil),      // 1: nikodis.SetResponse
-	(*GetRequest)(nil),       // 2: nikodis.GetRequest
-	(*GetResponse)(nil),      // 3: nikodis.GetResponse
-	(*DeleteRequest)(nil),    // 4: nikodis.DeleteRequest
-	(*DeleteResponse)(nil),   // 5: nikodis.DeleteResponse
-	(*PublishRequest)(nil),   // 6: nikodis.PublishRequest
-	(*PublishResponse)(nil),  // 7: nikodis.PublishResponse
-	(*SubscribeStream)(nil),  // 8: nikodis.SubscribeStream
-	(*SubscribeRequest)(nil), // 9: nikodis.SubscribeRequest
-	(*Ack)(nil),              // 10: nikodis.Ack
-	(*Pause)(nil),            // 11: nikodis.Pause
-	(*Resume)(nil),           // 12: nikodis.Resume
-	(*Message)(nil),          // 13: nikodis.Message
+	(DeliveryMode)(0),          // 0: nikodis.DeliveryMode
+	(*SetRequest)(nil),         // 1: nikodis.SetRequest
+	(*SetResponse)(nil),        // 2: nikodis.SetResponse
+	(*GetRequest)(nil),         // 3: nikodis.GetRequest
+	(*GetResponse)(nil),        // 4: nikodis.GetResponse
+	(*DeleteRequest)(nil),      // 5: nikodis.DeleteRequest
+	(*DeleteResponse)(nil),     // 6: nikodis.DeleteResponse
+	(*PublishRequest)(nil),     // 7: nikodis.PublishRequest
+	(*PublishResponse)(nil),    // 8: nikodis.PublishResponse
+	(*SubscribeInit)(nil),      // 9: nikodis.SubscribeInit
+	(*SubscribeStream)(nil),    // 10: nikodis.SubscribeStream
+	(*SubscribeRequest)(nil),   // 11: nikodis.SubscribeRequest
+	(*UnsubscribeRequest)(nil), // 12: nikodis.UnsubscribeRequest
+	(*Ack)(nil),                // 13: nikodis.Ack
+	(*Pause)(nil),              // 14: nikodis.Pause
+	(*Resume)(nil),             // 15: nikodis.Resume
+	(*Message)(nil),            // 16: nikodis.Message
 }
 var file_nikodis_proto_depIdxs = []int32{
-	9,  // 0: nikodis.SubscribeStream.subscribe:type_name -> nikodis.SubscribeRequest
-	10, // 1: nikodis.SubscribeStream.ack:type_name -> nikodis.Ack
-	11, // 2: nikodis.SubscribeStream.pause:type_name -> nikodis.Pause
-	12, // 3: nikodis.SubscribeStream.resume:type_name -> nikodis.Resume
-	0,  // 4: nikodis.CacheService.Set:input_type -> nikodis.SetRequest
-	2,  // 5: nikodis.CacheService.Get:input_type -> nikodis.GetRequest
-	4,  // 6: nikodis.CacheService.Delete:input_type -> nikodis.DeleteRequest
-	6,  // 7: nikodis.BrokerService.Publish:input_type -> nikodis.PublishRequest
-	8,  // 8: nikodis.BrokerService.Subscribe:input_type -> nikodis.SubscribeStream
-	1,  // 9: nikodis.CacheService.Set:output_type -> nikodis.SetResponse
-	3,  // 10: nikodis.CacheService.Get:output_type -> nikodis.GetResponse
-	5,  // 11: nikodis.CacheService.Delete:output_type -> nikodis.DeleteResponse
-	7,  // 12: nikodis.BrokerService.Publish:output_type -> nikodis.PublishResponse
-	13, // 13: nikodis.BrokerService.Subscribe:output_type -> nikodis.Message
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	0,  // 0: nikodis.SubscribeInit.delivery_mode:type_name -> nikodis.DeliveryMode
+	9,  // 1: nikodis.SubscribeStream.init:type_name -> nikodis.SubscribeInit
+	11, // 2: nikodis.SubscribeStream.subscribe:type_name -> nikodis.SubscribeRequest
+	12, // 3: nikodis.SubscribeStream.unsubscribe:type_name -> nikodis.UnsubscribeRequest
+	13, // 4: nikodis.SubscribeStream.ack:type_name -> nikodis.Ack
+	14, // 5: nikodis.SubscribeStream.pause:type_name -> nikodis.Pause
+	15, // 6: nikodis.SubscribeStream.resume:type_name -> nikodis.Resume
+	1,  // 7: nikodis.CacheService.Set:input_type -> nikodis.SetRequest
+	3,  // 8: nikodis.CacheService.Get:input_type -> nikodis.GetRequest
+	5,  // 9: nikodis.CacheService.Delete:input_type -> nikodis.DeleteRequest
+	7,  // 10: nikodis.BrokerService.Publish:input_type -> nikodis.PublishRequest
+	10, // 11: nikodis.BrokerService.Subscribe:input_type -> nikodis.SubscribeStream
+	2,  // 12: nikodis.CacheService.Set:output_type -> nikodis.SetResponse
+	4,  // 13: nikodis.CacheService.Get:output_type -> nikodis.GetResponse
+	6,  // 14: nikodis.CacheService.Delete:output_type -> nikodis.DeleteResponse
+	8,  // 15: nikodis.BrokerService.Publish:output_type -> nikodis.PublishResponse
+	16, // 16: nikodis.BrokerService.Subscribe:output_type -> nikodis.Message
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_nikodis_proto_init() }
@@ -862,8 +1071,10 @@ func file_nikodis_proto_init() {
 	}
 	file_nikodis_proto_msgTypes[0].OneofWrappers = []any{}
 	file_nikodis_proto_msgTypes[6].OneofWrappers = []any{}
-	file_nikodis_proto_msgTypes[8].OneofWrappers = []any{
+	file_nikodis_proto_msgTypes[9].OneofWrappers = []any{
+		(*SubscribeStream_Init)(nil),
 		(*SubscribeStream_Subscribe)(nil),
+		(*SubscribeStream_Unsubscribe)(nil),
 		(*SubscribeStream_Ack)(nil),
 		(*SubscribeStream_Pause)(nil),
 		(*SubscribeStream_Resume)(nil),
@@ -873,13 +1084,14 @@ func file_nikodis_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nikodis_proto_rawDesc), len(file_nikodis_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   14,
+			NumEnums:      1,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
 		GoTypes:           file_nikodis_proto_goTypes,
 		DependencyIndexes: file_nikodis_proto_depIdxs,
+		EnumInfos:         file_nikodis_proto_enumTypes,
 		MessageInfos:      file_nikodis_proto_msgTypes,
 	}.Build()
 	File_nikodis_proto = out.File
