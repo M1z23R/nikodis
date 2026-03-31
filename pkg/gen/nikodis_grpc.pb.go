@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	CacheService_Set_FullMethodName    = "/nikodis.CacheService/Set"
-	CacheService_Get_FullMethodName    = "/nikodis.CacheService/Get"
-	CacheService_Delete_FullMethodName = "/nikodis.CacheService/Delete"
+	CacheService_Set_FullMethodName     = "/nikodis.CacheService/Set"
+	CacheService_Get_FullMethodName     = "/nikodis.CacheService/Get"
+	CacheService_BulkGet_FullMethodName = "/nikodis.CacheService/BulkGet"
+	CacheService_Delete_FullMethodName  = "/nikodis.CacheService/Delete"
 )
 
 // CacheServiceClient is the client API for CacheService service.
@@ -30,6 +31,7 @@ const (
 type CacheServiceClient interface {
 	Set(ctx context.Context, in *SetRequest, opts ...grpc.CallOption) (*SetResponse, error)
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
+	BulkGet(ctx context.Context, in *BulkGetRequest, opts ...grpc.CallOption) (*BulkGetResponse, error)
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 }
 
@@ -61,6 +63,16 @@ func (c *cacheServiceClient) Get(ctx context.Context, in *GetRequest, opts ...gr
 	return out, nil
 }
 
+func (c *cacheServiceClient) BulkGet(ctx context.Context, in *BulkGetRequest, opts ...grpc.CallOption) (*BulkGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BulkGetResponse)
+	err := c.cc.Invoke(ctx, CacheService_BulkGet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *cacheServiceClient) Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeleteResponse)
@@ -77,6 +89,7 @@ func (c *cacheServiceClient) Delete(ctx context.Context, in *DeleteRequest, opts
 type CacheServiceServer interface {
 	Set(context.Context, *SetRequest) (*SetResponse, error)
 	Get(context.Context, *GetRequest) (*GetResponse, error)
+	BulkGet(context.Context, *BulkGetRequest) (*BulkGetResponse, error)
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	mustEmbedUnimplementedCacheServiceServer()
 }
@@ -93,6 +106,9 @@ func (UnimplementedCacheServiceServer) Set(context.Context, *SetRequest) (*SetRe
 }
 func (UnimplementedCacheServiceServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedCacheServiceServer) BulkGet(context.Context, *BulkGetRequest) (*BulkGetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BulkGet not implemented")
 }
 func (UnimplementedCacheServiceServer) Delete(context.Context, *DeleteRequest) (*DeleteResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
@@ -154,6 +170,24 @@ func _CacheService_Get_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CacheService_BulkGet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CacheServiceServer).BulkGet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CacheService_BulkGet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CacheServiceServer).BulkGet(ctx, req.(*BulkGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _CacheService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteRequest)
 	if err := dec(in); err != nil {
@@ -186,6 +220,10 @@ var CacheService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Get",
 			Handler:    _CacheService_Get_Handler,
+		},
+		{
+			MethodName: "BulkGet",
+			Handler:    _CacheService_BulkGet_Handler,
 		},
 		{
 			MethodName: "Delete",

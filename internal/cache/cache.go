@@ -71,6 +71,32 @@ func (s *Store) Get(key string) ([]byte, bool) {
 	return e.value, true
 }
 
+func (s *Store) BulkGet(keys []string) map[string][]byte {
+	result := make(map[string][]byte, len(keys))
+	var expired []string
+	s.mu.RLock()
+	for _, key := range keys {
+		e, ok := s.items[key]
+		if !ok {
+			continue
+		}
+		if e.expired() {
+			expired = append(expired, key)
+			continue
+		}
+		result[key] = e.value
+	}
+	s.mu.RUnlock()
+	for _, key := range expired {
+		s.Delete(key)
+	}
+	s.logger.Log(debuglog.Event{
+		Component: "cache",
+		Action:    "cache_bulk_get",
+	})
+	return result
+}
+
 func (s *Store) Delete(key string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()

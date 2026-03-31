@@ -36,6 +36,25 @@ func (s *CacheService) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResp
 	return &pb.GetResponse{Value: val, Found: found}, nil
 }
 
+func (s *CacheService) BulkGet(ctx context.Context, req *pb.BulkGetRequest) (*pb.BulkGetResponse, error) {
+	ns := extractNamespace(ctx)
+	nsKeys := make([]string, len(req.Keys))
+	keyMap := make(map[string]string, len(req.Keys))
+	for i, key := range req.Keys {
+		nk := namespacedKey(ns, key)
+		nsKeys[i] = nk
+		keyMap[nk] = key
+	}
+	found := s.store.BulkGet(nsKeys)
+	entries := make([]*pb.BulkGetEntry, len(req.Keys))
+	for i, key := range req.Keys {
+		nk := namespacedKey(ns, key)
+		val, ok := found[nk]
+		entries[i] = &pb.BulkGetEntry{Key: key, Value: val, Found: ok}
+	}
+	return &pb.BulkGetResponse{Entries: entries}, nil
+}
+
 func (s *CacheService) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
 	ns := extractNamespace(ctx)
 	key := namespacedKey(ns, req.Key)

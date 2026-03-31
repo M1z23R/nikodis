@@ -9,6 +9,7 @@ option go_package = "github.com/M1z23R/nikodis/pkg/gen";
 service CacheService {
   rpc Set(SetRequest) returns (SetResponse);
   rpc Get(GetRequest) returns (GetResponse);
+  rpc BulkGet(BulkGetRequest) returns (BulkGetResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
 }
 
@@ -25,6 +26,18 @@ message GetRequest {
 message GetResponse {
   bytes value = 1;
   bool found = 2;
+}
+
+message BulkGetRequest {
+  repeated string keys = 1;
+}
+message BulkGetResponse {
+  repeated BulkGetEntry entries = 1;
+}
+message BulkGetEntry {
+  string key = 1;
+  bytes value = 2;
+  bool found = 3;
 }
 
 message DeleteRequest {

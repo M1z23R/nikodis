@@ -70,6 +70,20 @@ func (c *Client) Get(ctx context.Context, key string) ([]byte, bool, error) {
 	return resp.Value, resp.Found, nil
 }
 
+func (c *Client) BulkGet(ctx context.Context, keys ...string) (map[string][]byte, error) {
+	resp, err := c.cache.BulkGet(c.withMeta(ctx), &pb.BulkGetRequest{Keys: keys})
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][]byte, len(resp.Entries))
+	for _, e := range resp.Entries {
+		if e.Found {
+			result[e.Key] = e.Value
+		}
+	}
+	return result, nil
+}
+
 func (c *Client) Delete(ctx context.Context, key string) (bool, error) {
 	resp, err := c.cache.Delete(c.withMeta(ctx), &pb.DeleteRequest{Key: key})
 	if err != nil {
